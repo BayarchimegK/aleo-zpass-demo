@@ -1,0 +1,35 @@
+{
+<<<<<<< HEAD
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.2.0",
+    "@provablehq/sdk": "^0.10.5",
+    "axios": "^1.16.0",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+=======
+  "dependencies": {
+    "pptxgenjs": "^4.0.1"
+>>>>>>> 2489cdd5ec13440f3cbfe27bd0a095dd37e9c565
+  }
+}

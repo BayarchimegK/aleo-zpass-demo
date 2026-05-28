@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SSI · ZK 시스템 흐름</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ─── TOKENS ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:          #08101f;
+  --bg2:         #0d1829;
+  --surface:     #111f35;
+  --surface2:    #162740;
+  --border:      rgba(255,255,255,0.07);
+  --border2:     rgba(255,255,255,0.13);
+  --text:        #e4eaf5;
+  --text2:       #7a90b0;
+  --text3:       #4a607a;
+
+  --pa:  #6b63d4;  --pa-bg: rgba(107,99,212,0.13); --pa-glow: rgba(107,99,212,0.35);
+  --pb:  #2b8fd6;  --pb-bg: rgba(43,143,214,0.13); --pb-glow: rgba(43,143,214,0.35);
+  --pc:  #c07c1e;  --pc-bg: rgba(192,124,30,0.13); --pc-glow: rgba(192,124,30,0.35);
+  --pd:  #cc5530;  --pd-bg: rgba(204,85,48,0.13);  --pd-glow: rgba(204,85,48,0.35);
+
+  --font-display: 'Sora', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  --radius:  14px;
+  --radius-sm: 8px;
+  --transition: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── RESET ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body {
+  font-family: var(--font-display);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 32px 16px 48px;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(43,100,190,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 80% 80%, rgba(107,99,212,0.07) 0%, transparent 60%);
+}
+
+/* ─── SHELL ──────────────────────────────────────────────────────────── */
+.shell {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* ─── HEADER ─────────────────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 99px;
+  padding: 5px 14px 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+  letter-spacing: 0.06em;
+  margin-bottom: 18px;
+}
+.header-badge .dot-live {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #2dca72;
+  box-shadow: 0 0 6px #2dca72;
+  animation: pulse-live 2s infinite;
+}
+@keyframes pulse-live {
+  0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+}
+.header h1 {
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  background: linear-gradient(135deg, #c9d8f0 0%, #7ba4d4 60%, #5584b4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+}
+.header p {
+  font-size: 13.5px;
+  color: var(--text2);
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+/* ─── PHASE NAV ──────────────────────────────────────────────────────── */
+.phase-nav {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.phase-btn {
+  position: relative;
+  padding: 14px 8px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  text-align: center;
+  transition: var(--transition);
+  overflow: hidden;
+  line-height: 1.4;
+}
+.phase-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.phase-btn:hover { color: var(--text); border-color: var(--border2); }
+.phase-btn .phase-letter {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  transition: var(--transition);
+}
+.phase-btn .phase-name { font-size: 11.5px; }
+
+/* Active states per phase */
+.phase-btn.pa.active { border-color: var(--pa); color: #c4beff; background: var(--pa-bg); box-shadow: 0 0 20px var(--pa-glow), inset 0 0 12px rgba(107,99,212,0.08); }
+.phase-btn.pa.active .phase-letter { color: var(--pa); text-shadow: 0 0 12px var(--pa); }
+.phase-btn.pb.active { border-color: var(--pb); color: #a8d2f5; background: var(--pb-bg); box-shadow: 0 0 20px var(--pb-glow), inset 0 0 12px rgba(43,143,214,0.08); }
+.phase-btn.pb.active .phase-letter { color: var(--pb); text-shadow: 0 0 12px var(--pb); }
+.phase-btn.pc.active { border-color: var(--pc); color: #f5d89a; background: var(--pc-bg); box-shadow: 0 0 20px var(--pc-glow), inset 0 0 12px rgba(192,124,30,0.08); }
+.phase-btn.pc.active .phase-letter { color: var(--pc); text-shadow: 0 0 12px var(--pc); }
+.phase-btn.pd.active { border-color: var(--pd); color: #f5bfa8; background: var(--pd-bg); box-shadow: 0 0 20px var(--pd-glow), inset 0 0 12px rgba(204,85,48,0.08); }
+.phase-btn.pd.active .phase-letter { color: var(--pd); text-shadow: 0 0 12px var(--pd); }
+
+/* ─── PANEL ──────────────────────────────────────────────────────────── */
+.panel { display: none; }
+.panel.active { display: block; animation: fadeSlide 0.32s cubic-bezier(0.4,0,0.2,1); }
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── PHASE HEADER ───────────────────────────────────────────────────── */
+.phase-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.phase-icon {
+  flex-shrink: 0;
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+}
+.pa-icon { background: var(--pa-bg); color: var(--pa); border: 1px solid rgba(107,99,212,0.3); }
+.pb-icon { background: var(--pb-bg); color: var(--pb); border: 1px solid rgba(43,143,214,0.3); }
+.pc-icon { background: var(--pc-bg); color: var(--pc); border: 1px solid rgba(192,124,30,0.3); }
+.pd-icon { background: var(--pd-bg); color: var(--pd); border: 1px solid rgba(204,85,48,0.3); }
+.phase-header-text { flex: 1; }
+.phase-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+.phase-sub { font-size: 13px; color: var(--text2); line-height: 1.6; }
+.phase-steps-count {
+  flex-shrink: 0;
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px 10px;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+/* ─── ACTORS BAR ─────────────────────────────────────────────────────── */
+.actors-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.actor-pill {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 99px;
+  border: 1.5px solid;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+.actor-pill .actor-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.actor-pill-sub { font-size: 10px; font-weight: 400; opacity: 0.65; }
+
+/* ─── STEP CARDS ─────────────────────────────────────────────────────── */
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.step-card {
+  position: relative;
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+.step-card:hover { border-color: var(--border2); box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+.step-card.expanded { border-color: var(--border2); }
+
+/* Left accent bar */
+.step-accent {
+  width: 4px;
+  flex-shrink: 0;
+  border-radius: 14px 0 0 14px;
+}
+
+/* Step main row */
+.step-main {
+  flex: 1;
+  padding: 14px 16px 14px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+.step-num-wrap {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.step-num {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1.5px solid;
+  flex-shrink: 0;
+}
+.step-content { flex: 1; }
+.step-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+.step-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.step-dir-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid;
+  letter-spacing: 0.04em;
+}
+.step-actors {
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.step-actors .sep { color: var(--text3); }
+.step-arrow-icon { font-size: 11px; }
+
+/* Expand toggle */
+.step-toggle {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  color: var(--text3);
+  align-self: flex-start;
+  margin-top: 4px;
+  transition: transform 0.2s, color 0.2s;
+}
+.step-card.expanded .step-toggle { transform: rotate(180deg); color: var(--text2); }
+
+/* Detail panel */
+.step-detail {
+  display: none;
+  padding: 0 16px 14px 57px;
+}
+.step-card.expanded .step-detail { display: block; animation: fadeIn 0.22s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.detail-body {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.detail-desc {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.7;
+}
+.detail-payload {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #6ab3e8;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+.detail-payload .key   { color: var(--text2); }
+.detail-payload .str   { color: #8ec97a; }
+.detail-payload .bool  { color: #d19a66; }
+.detail-payload .num   { color: #e5c07b; }
+.detail-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.detail-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  background: var(--bg2);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.privacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(45,202,114,0.07);
+  border: 1px solid rgba(45,202,114,0.2);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 12px;
+  color: #7ee8a8;
+  line-height: 1.6;
+}
+.privacy-note .icon { flex-shrink: 0; margin-top: 1px; }
+
+/* Connector between cards */
+.step-connector {
+  display: flex;
+  align-items: center;
+  padding-left: 29px;
+  height: 10px;
+  gap: 0;
+}
+.step-connector-line {
+  width: 2px;
+  height: 100%;
+  border-radius: 99px;
+  opacity: 0.3;
+  margin-left: 13px;
+}
+
+/* ─── NAVIGATION ─────────────────────────────────────────────────────── */
+.nav-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border2);
+  background: var(--surface);
+  color: var(--text2);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.nav-btn:hover:not(:disabled) { color: var(--text); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+.nav-btn:disabled { opacity: 0.25; cursor: default; }
+
+.progress-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.prog-seg {
+  height: 3px;
+  width: 32px;
+  border-radius: 99px;
+  background: var(--border2);
+  transition: background 0.28s, width 0.28s;
+}
+.prog-seg.pa.active { background: var(--pa); width: 44px; }
+.prog-seg.pb.active { background: var(--pb); width: 44px; }
+.prog-seg.pc.active { background: var(--pc); width: 44px; }
+.prog-seg.pd.active { background: var(--pd); width: 44px; }
+
+/* ─── SUMMARY ────────────────────────────────────────────────────────── */
+.summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.summary-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text3);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 8px;
+}
+.summary-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+.summary-card:hover { border-color: var(--border2); }
+.summary-card .sc-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.summary-card .sc-text { font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.35; }
+.summary-card .sc-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* ─── SCROLLBAR ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-badge">
+      <span class="dot-live"></span>
+      SSI · ZKP · Aleo 워크플로우
+    </div>
+    <h1>프라이버시 보존 성인 인증 시스템</h1>
+    <p>나이를 공개하지 않고 성인 여부만 증명합니다.<br>4단계 흐름을 클릭하여 각 단계의 상세 내용을 확인하세요.</p>
+  </div>
+
+  <!-- PHASE NAV -->
+  <div class="phase-nav">
+    <button class="phase-btn pa active" onclick="goTo(0)">
+      <span class="phase-letter">A</span>
+      <span class="phase-name">자격증명 발급</span>
+    </button>
+    <button class="phase-btn pb" onclick="goTo(1)">
+      <span class="phase-letter">B</span>
+      <span class="phase-name">인증</span>
+    </button>
+    <button class="phase-btn pc" onclick="goTo(2)">
+      <span class="phase-letter">C</span>
+      <span class="phase-name">영지식 증명 생성</span>
+    </button>
+    <button class="phase-btn pd" onclick="goTo(3)">
+      <span class="phase-letter">D</span>
+      <span class="phase-name">콘텐츠 접근</span>
+    </button>
+  </div>
+
+  <!-- ══ PANEL A ══════════════════════════════════════════════════════ -->
+  <div class="panel active" id="p0">
+    <div class="phase-header">
+      <div class="phase-icon pa-icon">A</div>
+      <div class="phase-header-text">
+        <div class="phase-title">자격증명 발급 (VC Issuance)</div>
+        <div class="phase-sub">신뢰할 수 있는 기관으로부터 Verifiable Credential(VC)을 발급받아 개인 지갑에 등록하는 단계입니다. 이 단계는 최초 1회만 수행합니다.</div>
+      </div>
+      <div class="phase-steps-count">3 steps</div>
+    </div>
+
+    <div class="actors-bar">
+      <div class="actor-pill" style="border-color:rgba(107,99,212,0.4);color:#c4beff;background:var(--pa-bg)">
+        <div class="actor-dot" style="background:var(--pa)"></div>
+        보유자 <span class="actor-pill-sub">브라우저/지갑</span>
+      </div>
+      <div class="actor-pill" style="border-color:rgba(45,158,117,0.4);color:#88ddb8;background:rgba(45,158,117,0.1)">
+        <div class="actor-dot" style="background:#1d9e75"></div>
+        발급자 UI <span class="actor-pill-sub">VC 발급</span>
+      </div>
+      <div class="actor-pill" style="border-color:rgba(43,143,214,0.4);color:#a8d2f5;background:var(--pb-bg)">
+        <div class="actor-dot" style="background:var(--pb)"></div>
+        인증 백엔드 <span class="actor-pill-sub">레지스트리</span>
+      </div>
+    </div>
+
+    <div class="steps-list">
+
+      <!-- Step 1 -->
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pa)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pa-bg);border-color:var(--pa);color:var(--pa)">1</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">VC 발급 요청</span>
+              <span class="step-dir-badge" style="border-color:rgba(107,99,212,0.4);color:var(--pa);background:var(--pa-bg)">→ 요청</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#c4beff">보유자</span>
+              <span class="sep">──▶</span>
+              <span style="color:#88ddb8">발급자 UI</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              사용자(보유자)가 브라우저 또는 지갑 앱을 통해 신뢰 기관의 발급자 UI에 접속하여 Verifiable Credential 발급을 요청합니다. 이 요청에는 신원 확인을 위한 최소한의 정보가 포함됩니다.
+            </div>
+            <div class="detail-payload"><span class="key">POST</span> /api/vc/issue<br>{<br>  <span class="key">  "holder_did"</span>: <span class="str">"did:aleo:1xyz..."</span>,<br>  <span class="key">  "credential_type"</span>: <span class="str">"AgeVerification"</span><br>}</div>
+            <div class="detail-tags">
+              <span class="detail-tag">DID</span>
+              <span class="detail-tag">W3C VC</span>
+              <span class="detail-tag">HTTPS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-connector"><div class="step-connector-line" style="background:var(--pa)"></div></div>
+
+      <!-- Step 2 -->
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:#1d9e75"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:rgba(29,158,117,0.13);border-color:#1d9e75;color:#1d9e75">2</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">서명된 VC 반환</span>
+              <span class="step-dir-badge" style="border-color:rgba(29,158,117,0.4);color:#1d9e75;background:rgba(29,158,117,0.1)">← 응답</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#88ddb8">발급자 UI</span>
+              <span class="sep">──▶</span>
+              <span style="color:#c4beff">보유자</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              발급자는 사용자의 나이를 확인한 후, 발급자의 개인키로 서명된 VC를 반환합니다. VC에는 실제 생년월일 대신, 영지식 증명 회로가 사용할 수 있는 암호학적 커밋먼트(commitment)만 포함됩니다.
+            </div>
+            <div class="detail-payload">{<br>  <span class="key">  "@context"</span>: [<span class="str">"https://www.w3.org/2018/credentials/v1"</span>],<br>  <span class="key">  "type"</span>: [<span class="str">"VerifiableCredential"</span>],<br>  <span class="key">  "credentialSubject"</span>: {<br>  <span class="key">    "age_commitment"</span>: <span class="str">"0x8f3a..."</span>,<br>  <span class="key">    "is_adult"</span>: <span class="bool">true</span><br>  },<br>  <span class="key">  "proof"</span>: { <span class="key">"type"</span>: <span class="str">"Ed25519Signature2020"</span> }<br>}</div>
+            <div class="privacy-note">
+              <span class="icon">🔒</span>
+              실제 생년월일은 VC에 포함되지 않습니다. 암호학적 커밋먼트만 저장되어, 발급자 서버가 데이터를 보관하지 않아도 검증이 가능합니다.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-connector"><div class="step-connector-line" style="background:#1d9e75"></div></div>
+
+      <!-- Step 3 -->
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pb)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pb-bg);border-color:var(--pb);color:var(--pb)">3</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">VC 등록</span>
+              <span class="step-dir-badge" style="border-color:rgba(43,143,214,0.4);color:var(--pb);background:var(--pb-bg)">→ 등록</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#88ddb8">발급자 UI</span>
+              <span class="sep">──▶</span>
+              <span style="color:#a8d2f5">인증 백엔드</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              발급된 VC의 서명(공개키 해시)과 커밋먼트 정보가 인증 백엔드의 레지스트리에 등록됩니다. 이후 인증 단계에서 VC의 유효성을 빠르게 검증하기 위한 인덱스 역할을 합니다.
+            </div>
+            <div class="detail-payload"><span class="key">POST</span> /registry/register<br>{<br>  <span class="key">  "vc_id"</span>: <span class="str">"vc-uuid-1234"</span>,<br>  <span class="key">  "issuer_pubkey_hash"</span>: <span class="str">"0xab12..."</span>,<br>  <span class="key">  "commitment"</span>: <span class="str">"0x8f3a..."</span>,<br>  <span class="key">  "expires_at"</span>: <span class="str">"2026-12-31T00:00:00Z"</span><br>}</div>
+            <div class="detail-tags">
+              <span class="detail-tag">Registry</span>
+              <span class="detail-tag">Commitment</span>
+              <span class="detail-tag">PubKey</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ PANEL B ══════════════════════════════════════════════════════ -->
+  <div class="panel" id="p1">
+    <div class="phase-header">
+      <div class="phase-icon pb-icon">B</div>
+      <div class="phase-header-text">
+        <div class="phase-title">인증 (Authentication)</div>
+        <div class="phase-sub">보유자가 VC를 제출하면, 인증 백엔드는 개인정보를 직접 확인하지 않고 서명과 커밋먼트만 검증한 후 단기 JWT를 발급합니다.</div>
+      </div>
+      <div class="phase-steps-count">2 steps</div>
+    </div>
+
+    <div class="actors-bar">
+      <div class="actor-pill" style="border-color:rgba(107,99,212,0.4);color:#c4beff;background:var(--pa-bg)">
+        <div class="actor-dot" style="background:var(--pa)"></div>
+        보유자 <span class="actor-pill-sub">브라우저/지갑</span>
+      </div>
+      <div class="actor-pill" style="border-color:rgba(43,143,214,0.4);color:#a8d2f5;background:var(--pb-bg)">
+        <div class="actor-dot" style="background:var(--pb)"></div>
+        인증 백엔드 <span class="actor-pill-sub">VC 검증</span>
+      </div>
+    </div>
+
+    <div class="steps-list">
+
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pb)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pb-bg);border-color:var(--pb);color:var(--pb)">4</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">VC 제출</span>
+              <span class="step-dir-badge" style="border-color:rgba(43,143,214,0.4);color:var(--pb);background:var(--pb-bg)">→ 요청</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#c4beff">보유자</span>
+              <span class="sep">──▶</span>
+              <span style="color:#a8d2f5">인증 백엔드</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              보유자는 지갑에 저장된 VC를 인증 백엔드에 제출합니다. 이 단계에서 전송되는 것은 VC 자체(서명, 커밋먼트 포함)뿐이며, 생년월일이나 주민번호 등 실제 개인정보는 전송되지 않습니다.
+            </div>
+            <div class="detail-payload"><span class="key">POST</span> /auth/login<br>{<br>  <span class="key">  "verifiable_credential"</span>: {<br>  <span class="key">    "vc_id"</span>: <span class="str">"vc-uuid-1234"</span>,<br>  <span class="key">    "issuer_signature"</span>: <span class="str">"0xEd25519..."</span>,<br>  <span class="key">    "age_commitment"</span>: <span class="str">"0x8f3a..."</span><br>  }<br>}</div>
+            <div class="privacy-note">
+              <span class="icon">🛡️</span>
+              실제 나이·생년월일은 이 요청에 포함되지 않습니다. 서버는 서명 유효성과 레지스트리 등록 여부만 확인합니다.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-connector"><div class="step-connector-line" style="background:var(--pb)"></div></div>
+
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pb)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pb-bg);border-color:var(--pb);color:var(--pb)">5</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">단기 JWT 발급</span>
+              <span class="step-dir-badge" style="border-color:rgba(43,143,214,0.4);color:var(--pb);background:var(--pb-bg)">← 응답</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#a8d2f5">인증 백엔드</span>
+              <span class="sep">──▶</span>
+              <span style="color:#c4beff">보유자</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              VC의 서명이 유효하고 레지스트리에 등록된 것이 확인되면, 인증 백엔드는 단기(short-lived) JWT를 발급합니다. 이 토큰은 만료 시간이 짧아 탈취되더라도 피해를 최소화합니다.
+            </div>
+            <div class="detail-payload">{<br>  <span class="key">  "access_token"</span>: <span class="str">"eyJhbGci..."</span>,<br>  <span class="key">  "token_type"</span>: <span class="str">"Bearer"</span>,<br>  <span class="key">  "expires_in"</span>: <span class="num">900</span>,  <span class="key">// 15분</span><br>  <span class="key">  "scope"</span>: <span class="str">"zkp_age_verify"</span><br>}</div>
+            <div class="detail-tags">
+              <span class="detail-tag">JWT</span>
+              <span class="detail-tag">RS256</span>
+              <span class="detail-tag">15min TTL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ PANEL C ══════════════════════════════════════════════════════ -->
+  <div class="panel" id="p2">
+    <div class="phase-header">
+      <div class="phase-icon pc-icon">C</div>
+      <div class="phase-header-text">
+        <div class="phase-title">영지식 증명 생성 (ZKP Generation)</div>
+        <div class="phase-sub">사용자 기기(WASM)에서 실제 나이를 외부에 노출하지 않고, Aleo 영지식 회로를 통해 "성인임을 증명하는 암호 증명서"만 생성합니다.</div>
+      </div>
+      <div class="phase-steps-count">2 steps</div>
+    </div>
+
+    <div class="actors-bar">
+      <div class="actor-pill" style="border-color:rgba(107,99,212,0.4);color:#c4beff;background:var(--pa-bg)">
+        <div class="actor-dot" style="background:var(--pa)"></div>
+        보유자 <span class="actor-pill-sub">WASM 실행</span>
+      </div>
+      <div class="actor-pill" style="border-color:rgba(192,124,30,0.4);color:#f5d89a;background:var(--pc-bg)">
+        <div class="actor-dot" style="background:var(--pc)"></div>
+        Aleo / 증명자 <span class="actor-pill-sub">영지식 회로·WASM</span>
+      </div>
+    </div>
+
+    <div class="steps-list">
+
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pc)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pc-bg);border-color:var(--pc);color:var(--pc)">6</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">영지식 증명 생성 요청</span>
+              <span class="step-dir-badge" style="border-color:rgba(192,124,30,0.4);color:var(--pc);background:var(--pc-bg)">→ 내부 연산</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#c4beff">보유자 기기</span>
+              <span class="sep">──▶</span>
+              <span style="color:#f5d89a">Aleo WASM</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              사용자 브라우저 내에서 WASM으로 컴파일된 Aleo 증명자(prover)가 실행됩니다. 입력값은 VC에 포함된 나이 커밋먼트와 사용자의 실제 나이(private input)이며, 이 연산은 기기 외부로 전혀 전송되지 않습니다.
+            </div>
+            <div class="detail-payload"><span class="key">// Aleo Leo 회로 (의사 코드)</span><br><span class="key">function</span> prove_adult(<br>  <span class="key">  private</span> age: u8,<br>  <span class="key">  private</span> commitment_nonce: field,<br>  <span class="key">  public</span>  commitment: field<br>) -> <span class="bool">bool</span> {<br>  assert(commit(age, commitment_nonce) == commitment);<br>  assert(age >= <span class="num">19</span>);<br>  return <span class="bool">true</span>;<br>}</div>
+            <div class="privacy-note">
+              <span class="icon">🔐</span>
+              <strong>핵심:</strong> age(나이)는 private input으로, 기기 밖으로 절대 전송되지 않습니다. 결과값(proof)만 외부로 전달됩니다.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-connector"><div class="step-connector-line" style="background:var(--pc)"></div></div>
+
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pc)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pc-bg);border-color:var(--pc);color:var(--pc)">7</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">증명 결과 반환</span>
+              <span class="step-dir-badge" style="border-color:rgba(192,124,30,0.4);color:var(--pc);background:var(--pc-bg)">← 결과</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#f5d89a">Aleo WASM</span>
+              <span class="sep">──▶</span>
+              <span style="color:#c4beff">보유자 기기</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              Aleo 회로 실행이 완료되면 영지식 증명(proof)이 생성됩니다. 이 proof는 "나이를 공개하지 않고 성인임을 수학적으로 증명"하는 암호학적 증거입니다. 이후 D단계에서 콘텐츠 백엔드로 전달됩니다.
+            </div>
+            <div class="detail-payload">{<br>  <span class="key">  "zk_proof"</span>: <span class="str">"0x4f8a3c2b1d..."</span>,  <span class="key">// 증명 데이터</span><br>  <span class="key">  "public_inputs"</span>: {<br>  <span class="key">    "commitment"</span>: <span class="str">"0x8f3a..."</span>,  <span class="key">// 공개값</span><br>  <span class="key">    "is_adult"</span>: <span class="bool">true</span><br>  },<br>  <span class="key">  "proof_size_bytes"</span>: <span class="num">192</span><br>}</div>
+            <div class="detail-tags">
+              <span class="detail-tag">Groth16</span>
+              <span class="detail-tag">Aleo Proof</span>
+              <span class="detail-tag">WASM</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ PANEL D ══════════════════════════════════════════════════════ -->
+  <div class="panel" id="p3">
+    <div class="phase-header">
+      <div class="phase-icon pd-icon">D</div>
+      <div class="phase-header-text">
+        <div class="phase-title">콘텐츠 접근 (Content Access)</div>
+        <div class="phase-sub">보유자가 JWT와 ZKP를 콘텐츠 백엔드에 전달하면, 백엔드는 개인정보를 전혀 보지 않고 암호학적으로 검증한 후 성인/미성년 콘텐츠를 분기하여 제공합니다.</div>
+      </div>
+      <div class="phase-steps-count">2 steps</div>
+    </div>
+
+    <div class="actors-bar">
+      <div class="actor-pill" style="border-color:rgba(107,99,212,0.4);color:#c4beff;background:var(--pa-bg)">
+        <div class="actor-dot" style="background:var(--pa)"></div>
+        보유자 <span class="actor-pill-sub">브라우저/지갑</span>
+      </div>
+      <div class="actor-pill" style="border-color:rgba(204,85,48,0.4);color:#f5bfa8;background:var(--pd-bg)">
+        <div class="actor-dot" style="background:var(--pd)"></div>
+        콘텐츠 백엔드 <span class="actor-pill-sub">검증자</span>
+      </div>
+    </div>
+
+    <div class="steps-list">
+
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pd)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pd-bg);border-color:var(--pd);color:var(--pd)">8</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">JWT + ZKP 전달</span>
+              <span class="step-dir-badge" style="border-color:rgba(204,85,48,0.4);color:var(--pd);background:var(--pd-bg)">→ 요청</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#c4beff">보유자</span>
+              <span class="sep">──▶</span>
+              <span style="color:#f5bfa8">콘텐츠 백엔드</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              보유자는 B단계에서 받은 JWT와 C단계에서 생성한 ZKP를 함께 콘텐츠 백엔드에 전달합니다. JWT는 인증 세션을, ZKP는 성인 여부를 각각 증명합니다.
+            </div>
+            <div class="detail-payload"><span class="key">GET</span> /content/adult<br><span class="key">Authorization:</span> Bearer eyJhbGci...<br><br>{<br>  <span class="key">  "zk_proof"</span>: <span class="str">"0x4f8a3c2b1d..."</span>,<br>  <span class="key">  "public_commitment"</span>: <span class="str">"0x8f3a..."</span><br>}</div>
+            <div class="detail-tags">
+              <span class="detail-tag">JWT Bearer</span>
+              <span class="detail-tag">ZK Proof</span>
+              <span class="detail-tag">TLS 1.3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-connector"><div class="step-connector-line" style="background:var(--pd)"></div></div>
+
+      <div class="step-card" onclick="toggleStep(this)">
+        <div class="step-accent" style="background:var(--pd)"></div>
+        <div class="step-main">
+          <div class="step-num-wrap">
+            <div class="step-num" style="background:var(--pd-bg);border-color:var(--pd);color:var(--pd)">9</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-title">접근 허용 / 거부 및 콘텐츠 분기</span>
+              <span class="step-dir-badge" style="border-color:rgba(204,85,48,0.4);color:var(--pd);background:var(--pd-bg)">← 응답</span>
+            </div>
+            <div class="step-actors">
+              <span style="color:#f5bfa8">콘텐츠 백엔드</span>
+              <span class="sep">──▶</span>
+              <span style="color:#c4beff">보유자</span>
+            </div>
+          </div>
+          <div class="step-toggle">▾</div>
+        </div>
+        <div class="step-detail">
+          <div class="detail-body">
+            <div class="detail-desc">
+              콘텐츠 백엔드는 JWT 유효성 + ZKP 암호 검증(verify)을 수행합니다. 검증이 통과되면 성인 콘텐츠를, 실패하면 미성년자 콘텐츠 또는 에러를 반환합니다. 이 모든 과정에서 서버는 사용자의 실제 나이를 전혀 알 수 없습니다.
+            </div>
+            <div class="detail-payload"><span class="key">// 검증 성공 응답</span><br>{<br>  <span class="key">  "access"</span>: <span class="str">"granted"</span>,<br>  <span class="key">  "content_tier"</span>: <span class="str">"adult"</span>,<br>  <span class="key">  "proof_verified"</span>: <span class="bool">true</span>,<br>  <span class="key">  "session_expires"</span>: <span class="str">"2026-05-19T12:15:00Z"</span><br>}</div>
+            <div class="privacy-note">
+              <span class="icon">✅</span>
+              서버는 끝까지 사용자의 실제 나이를 보지 않았습니다. 오직 ZKP의 수학적 유효성만 검증했을 뿐입니다.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- NAVIGATION -->
+  <div class="nav-row">
+    <button class="nav-btn" id="btn-prev" onclick="step(-1)" disabled>
+      ← 이전 단계
+    </button>
+    <div class="progress-track">
+      <div class="prog-seg pa active" id="s0"></div>
+      <div class="prog-seg pb" id="s1"></div>
+      <div class="prog-seg pc" id="s2"></div>
+      <div class="prog-seg pd" id="s3"></div>
+    </div>
+    <button class="nav-btn" id="btn-next" onclick="step(1)">
+      다음 단계 →
+    </button>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="summary-label">시스템 핵심 결합 구조</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="sc-icon" style="background:var(--pa-bg)">🪪</div>
+        <div>
+          <div class="sc-text">자기주권신원 (SSI)</div>
+          <div class="sc-sub">W3C DID · Verifiable Credential</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-icon" style="background:var(--pb-bg)">🔑</div>
+        <div>
+          <div class="sc-text">JWT 기반 세션 인증</div>
+          <div class="sc-sub">단기 토큰 · RS256 서명</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-icon" style="background:var(--pc-bg)">🧮</div>
+        <div>
+          <div class="sc-text">Aleo 영지식 증명</div>
+          <div class="sc-sub">Groth16 · WASM Prover</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="sc-icon" style="background:rgba(45,202,114,0.1)">🛡️</div>
+        <div>
+          <div class="sc-text">개인정보 비노출 접근제어</div>
+          <div class="sc-sub">Zero Knowledge · Privacy-Preserving</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var cur = 0;
+var classes = ['pa','pb','pc','pd'];
+
+function goTo(n) {
+  // Deactivate old
+  document.getElementById('p' + cur).classList.remove('active');
+  document.getElementById('s' + cur).classList.remove('active');
+  document.querySelectorAll('.phase-btn')[cur].classList.remove('active');
+  // Activate new
+  cur = n;
+  document.getElementById('p' + cur).classList.add('active');
+  document.getElementById('s' + cur).classList.add('active');
+  document.querySelectorAll('.phase-btn')[cur].classList.add('active');
+  // Buttons
+  document.getElementById('btn-prev').disabled = cur === 0;
+  document.getElementById('btn-next').disabled = cur === 3;
+  // Collapse all expanded cards when switching panels
+  document.querySelectorAll('.step-card.expanded').forEach(function(c){ c.classList.remove('expanded'); });
+}
+
+function step(d) {
+  if (cur + d >= 0 && cur + d <= 3) goTo(cur + d);
+}
+
+function toggleStep(card) {
+  card.classList.toggle('expanded');
+}
+</script>
+</body>
+</html>

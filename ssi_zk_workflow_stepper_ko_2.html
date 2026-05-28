@@ -1,0 +1,784 @@
+<style>
+  :root {
+    --font-sans:
+      Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial;
+    --bg: #f5f7fb;
+    --card-bg: #ffffff;
+    --color-text-primary: #0b1330;
+    --color-text-secondary: #445066;
+    --color-border-secondary: #d7dbe6;
+    --color-background-secondary: #f7fafc;
+    --accent-green: #1d9e75;
+    --accent-blue: #378add;
+    --accent-amber: #ba7517;
+    --accent-red: #d85a30;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.45;
+    padding: 20px;
+  }
+
+  .wrap {
+    padding: 22px 18px 28px;
+    max-width: 780px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(11, 19, 48, 0.06);
+  }
+  .phase-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .phase-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: 2px solid var(--color-border-secondary);
+    border-radius: 10px;
+    background: var(--color-background-secondary);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s ease;
+    line-height: 1.25;
+    min-height: 56px;
+  }
+  .phase-btn:focus {
+    outline: 3px solid rgba(50, 115, 220, 0.12);
+    outline-offset: 2px;
+  }
+  .phase-btn.active {
+    border-width: 2px;
+    color: var(--color-text-primary);
+    background: #ffffff;
+    box-shadow: 0 4px 10px rgba(11, 19, 48, 0.06);
+  }
+  .phase-btn.pa.active {
+    border-color: #1d9e75;
+    background: #e1f5ee;
+    color: #085041;
+  }
+  .phase-btn.pb.active {
+    border-color: #378add;
+    background: #e6f1fb;
+    color: #0c447c;
+  }
+  .phase-btn.pc.active {
+    border-color: #ba7517;
+    background: #faeeda;
+    color: #633806;
+  }
+  .phase-btn.pd.active {
+    border-color: #d85a30;
+    background: #faece7;
+    color: #712b13;
+  }
+  .panel {
+    display: none;
+  }
+  .panel.active {
+    display: block;
+  }
+  .phase-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 4px;
+  }
+  .phase-sub {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 18px;
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .actor-col {
+    width: 110px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 4px;
+  }
+  .actor-box {
+    border-radius: 10px;
+    border: 2px solid;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    padding: 10px 6px;
+    width: 100%;
+    line-height: 1.25;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.6),
+      rgba(255, 255, 255, 0.4)
+    );
+  }
+  .actor-line {
+    flex: 1;
+    width: 2px;
+    margin: 0 auto;
+  }
+  .arrow-col {
+    width: 36px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .arrow-line {
+    width: 100%;
+    height: 2.5px;
+    position: relative;
+  }
+  .arrow-line::after {
+    content: "";
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+  }
+  .arrow-line.right::after {
+    border-left-color: inherit;
+    border-right: none;
+  }
+  .arrow-line.left::after {
+    right: auto;
+    left: -1px;
+    border-right-color: inherit;
+    border-left: none;
+  }
+  .arrow-line.dashed {
+    background: repeating-linear-gradient(
+      90deg,
+      currentColor 0,
+      currentColor 5px,
+      transparent 5px,
+      transparent 10px
+    );
+  }
+  .msg-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 10px 10px 6px;
+  }
+  .msg-box {
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border-secondary);
+    background: #ffffff;
+    padding: 12px 14px;
+  }
+  .msg-num {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+    background: var(--color-background-secondary);
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-secondary);
+  }
+  .msg-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+  }
+  .msg-desc {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+  .connector {
+    height: 32px;
+    display: flex;
+    align-items: center;
+  }
+  .connector-line {
+    width: 2.5px;
+    height: 100%;
+    margin: 0 auto;
+  }
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    gap: 8px;
+  }
+  .nav-btn {
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: 2px solid var(--color-border-secondary);
+    background: #ffffff;
+    color: var(--color-text-primary);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(11, 19, 48, 0.04);
+    transition: transform 0.12s ease;
+  }
+  .nav-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+  .nav-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .progress {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-border-secondary);
+    transition:
+      background 0.18s,
+      transform 0.18s;
+  }
+  .dot.active {
+    background: var(--color-text-secondary);
+    transform: scale(1.15);
+  }
+  .summary {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+  }
+  .summary-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+  .tag-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .tag {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1.5px solid;
+  }
+</style>
+
+<div class="wrap">
+  <div class="phase-nav">
+    <button class="phase-btn pa active" onclick="goTo(0)">
+      A<br />자격증명 발급
+    </button>
+    <button class="phase-btn pb" onclick="goTo(1)">B<br />인증</button>
+    <button class="phase-btn pc" onclick="goTo(2)">C<br />ZK 증명 생성</button>
+    <button class="phase-btn pd" onclick="goTo(3)">D<br />콘텐츠 접근</button>
+  </div>
+
+  <!-- PHASE A -->
+  <div class="panel active" id="p0">
+    <div class="phase-title">A 단계 — 자격증명 발급</div>
+    <div class="phase-sub">
+      발급자는 보유자가 제출한 'commitment'에 대해 서명하고, 레지스트리에 필요한
+      SSI 필드(`commitment`, `issuerSignature`, `holderDID`, `isAdult` 파생값)를
+      저장합니다.
+    </div>
+    <div class="flow">
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #7f77dd; background: #eeedfe; color: #3c3489"
+          >
+            보유자<br /><span style="font-weight: 400; font-size: 10px"
+              >브라우저/지갑</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">1</div>
+            <div class="msg-title">VC 발급 요청</div>
+            <div class="msg-desc">
+              사용자가 브라우저 또는 지갑을 통해 발급자 UI에 VC 발급을
+              요청합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div
+            class="arrow-line right"
+            style="background: #7f77dd; color: #7f77dd"
+          ></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #1d9e75; background: #e1f5ee; color: #085041"
+          >
+            발급자 UI<br /><span style="font-weight: 400; font-size: 10px"
+              >VC 발급</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #1d9e75; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">2</div>
+            <div class="msg-title">서명된 VC 반환</div>
+            <div class="msg-desc">
+              발급자가 VC를 생성하고 서명한 뒤 사용자에게 반환합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div class="arrow-line left dashed" style="color: #1d9e75"></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #1d9e75; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="actor-col"><div style="height: 32px"></div></div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">3</div>
+            <div class="msg-title">레지스트리에 VC 등록</div>
+            <div class="msg-desc">
+              발급자 백엔드는 보유자가 제공한 commitment에 대해
+              서명(`issuerSignature`)하고, 레지스트리에 `commitment`,
+              `issuerSignature`, `holderDID` 및 파생된 `isAdult` 값을
+              저장합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div
+            class="arrow-line right"
+            style="background: #1d9e75; color: #1d9e75"
+          ></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #378add; background: #e6f1fb; color: #0c447c"
+          >
+            인증 백엔드<br /><span style="font-weight: 400; font-size: 10px"
+              >레지스트리</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE B -->
+  <div class="panel" id="p1">
+    <div class="phase-title">B 단계 — 인증</div>
+    <div class="phase-sub">
+      보유자가 VC와 nonce(또는 VC 관련 material)를 제출하면 인증 백엔드가 저장된
+      commitment와 대조하여 vcSignature를 검증하고, 폐기여부를 확인한 뒤
+      nullifier를 기록하여 단기 JWT(credentialId, isAdult 포함)를 발급합니다.
+    </div>
+    <div class="flow">
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #7f77dd; background: #eeedfe; color: #3c3489"
+          >
+            보유자<br /><span style="font-weight: 400; font-size: 10px"
+              >브라우저/지갑</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">4</div>
+            <div class="msg-title">VC 제출</div>
+            <div class="msg-desc">
+              보호된 콘텐츠 접근을 위해 보유자가 자신의 VC를 인증 백엔드에
+              제출합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div
+            class="arrow-line right"
+            style="background: #378add; color: #378add"
+          ></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #378add; background: #e6f1fb; color: #0c447c"
+          >
+            인증 백엔드<br /><span style="font-weight: 400; font-size: 10px"
+              >VC 검증</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #378add; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">5</div>
+            <div class="msg-title">단기 JWT 발급</div>
+            <div class="msg-desc">
+              인증 백엔드는 제출된 VC material과 nonce로부터 vcSignature를
+              검증하고(저장된 commitment와 대조), revocation 체크를 수행한 뒤
+              nullifier를 로그에 남깁니다. 이후 `credentialId`와 `isAdult`를
+              포함한 단기 JWT를 발급하여 반환합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div class="arrow-line left dashed" style="color: #378add"></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #378add; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE C -->
+  <div class="panel" id="p2">
+    <div class="phase-title">C 단계 — Zero-Knowledge 증명 생성</div>
+    <div class="phase-sub">
+      Aleo 기반 ZK 증명을 클라이언트에서 WASM으로 생성하도록 설계됩니다. 서버는
+      데모용으로 `AleoService.verifyProofOutput()`를 통해 증명 출력에서
+      `isAdult`를 도출할 수 있지만, 운영 환경에서는 클라이언트 측 WASM 증명
+      생성이 권장됩니다.
+    </div>
+    <div class="flow">
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #7f77dd; background: #eeedfe; color: #3c3489"
+          >
+            보유자<br /><span style="font-weight: 400; font-size: 10px"
+              >WASM 실행</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">6</div>
+            <div class="msg-title">ZK 증명 생성 요청</div>
+            <div class="msg-desc">
+              사용자가 Aleo ZK 회로를 호출합니다. 클라이언트 환경에서 WASM
+              기반으로 직접 증명을 생성합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div
+            class="arrow-line right"
+            style="background: #ba7517; color: #ba7517"
+          ></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #ba7517; background: #faeeda; color: #633806"
+          >
+            Aleo / 증명자<br /><span style="font-weight: 400; font-size: 10px"
+              >ZK 회로·WASM</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #ba7517; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">7</div>
+            <div class="msg-title">증명 결과 반환</div>
+            <div class="msg-desc">
+              클라이언트에서 WASM으로 증명을 생성하면 opaque ZK proof가
+              반환됩니다. 서버(데모)는 `AleoService.verifyProofOutput()`로 proof
+              출력을 파싱하여 `isAdult`를 유도할 수 있으나, 프로덕션은 가능한 한
+              클라이언트에서 증명을 생성·검증하도록 설계해야 합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div class="arrow-line left dashed" style="color: #ba7517"></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #ba7517; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE D -->
+  <div class="panel" id="p3">
+    <div class="phase-title">D 단계 — 콘텐츠 접근</div>
+    <div class="phase-sub">
+      콘텐츠 백엔드는 단기 JWT를 검증하고 실시간으로 폐기(revocation) 상태를
+      확인하여 접근을 허용합니다. 현재 구현은 콘텐츠 백엔드가 raw ZK proof를
+      재검증하지 않아도 동작합니다(검증은 인증 단계에서 수행되어 JWT가 발급됨).
+    </div>
+    <div class="flow">
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #7f77dd; background: #eeedfe; color: #3c3489"
+          >
+            보유자<br /><span style="font-weight: 400; font-size: 10px"
+              >브라우저/지갑</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">8</div>
+            <div class="msg-title">JWT 전달 및 revocation 확인</div>
+            <div class="msg-desc">
+              보유자는 단기 JWT(및 필요 시 opaque proof)를 콘텐츠 백엔드에
+              제출합니다. 콘텐츠 백엔드는 JWT 유효성 검사 후 인증 백엔드의
+              revocation 엔드포인트를 호출하여 실시간 폐기 여부를 확인합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div
+            class="arrow-line right"
+            style="background: #d85a30; color: #d85a30"
+          ></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-box"
+            style="border-color: #d85a30; background: #faece7; color: #712b13"
+          >
+            콘텐츠 백엔드<br /><span style="font-weight: 400; font-size: 10px"
+              >검증자</span
+            >
+          </div>
+          <div
+            class="actor-line"
+            style="background: #d85a30; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+
+      <div class="step-row">
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #7f77dd; opacity: 0.3"
+          ></div>
+        </div>
+        <div class="msg-col">
+          <div class="msg-box">
+            <div class="msg-num">9</div>
+            <div class="msg-title">접근 허용 / 거부</div>
+            <div class="msg-desc">
+              검증 결과에 따라 사용자에게 콘텐츠 접근을 허용하거나 거부합니다.
+            </div>
+          </div>
+        </div>
+        <div class="arrow-col" style="justify-content: center">
+          <div class="arrow-line left dashed" style="color: #d85a30"></div>
+        </div>
+        <div class="actor-col">
+          <div
+            class="actor-line"
+            style="background: #d85a30; opacity: 0.3"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="nav-row">
+    <button class="nav-btn" id="btn-prev" onclick="step(-1)" disabled>
+      ← 이전
+    </button>
+    <div class="progress">
+      <div class="dot active" id="d0"></div>
+      <div class="dot" id="d1"></div>
+      <div class="dot" id="d2"></div>
+      <div class="dot" id="d3"></div>
+    </div>
+    <button class="nav-btn" id="btn-next" onclick="step(1)">다음 →</button>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="summary-title">이 시스템의 핵심 결합 구조</div>
+    <div class="tag-row">
+      <div
+        class="tag"
+        style="border-color: #7f77dd; color: #3c3489; background: #eeedfe"
+      >
+        SSI 기반 신원 인증
+      </div>
+      <div
+        class="tag"
+        style="border-color: #378add; color: #0c447c; background: #e6f1fb"
+      >
+        JWT 기반 세션 인증
+      </div>
+      <div
+        class="tag"
+        style="border-color: #ba7517; color: #633806; background: #faeeda"
+      >
+        Aleo ZK Proof
+      </div>
+      <div
+        class="tag"
+        style="border-color: #1d9e75; color: #085041; background: #e1f5ee"
+      >
+        개인정보 비노출 접근 제어
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="summary" style="margin-top: 12px">
+  <div class="summary-title">권장 변경사항 / 주의점</div>
+  <div class="tag-row">
+    <div
+      class="tag"
+      style="border-color: #378add; color: #0c447c; background: #e6f1fb"
+    >
+      DB: `proofTxId` 및 `proofExpiresAt` 필드에 issuance/verify에서 값 저장
+      권장 — 감사와 온체인 연동용.
+    </div>
+    <div
+      class="tag"
+      style="border-color: #ba7517; color: #633806; background: #faeeda"
+    >
+      검증 책임: 콘텐츠 백엔드가 raw ZK proof를 재검증하려면 (a) 증명을
+      포워드하거나 (b) 콘텐츠 백엔드가 `/auth/verify`로 proof를 요청하도록
+      변경해야 합니다.
+    </div>
+    <div
+      class="tag"
+      style="border-color: #1d9e75; color: #085041; background: #e1f5ee"
+    >
+      운영 권장: 클라이언트 측 WASM으로 증명 생성; 서버는 audit/추적용으로 proof
+      메타만 저장.
+    </div>
+  </div>
+</div>
+
+<script>
+  var cur = 0;
+  function goTo(n) {
+    document.getElementById("p" + cur).classList.remove("active");
+    document.getElementById("d" + cur).classList.remove("active");
+    document.querySelectorAll(".phase-btn")[cur].classList.remove("active");
+    cur = n;
+    document.getElementById("p" + cur).classList.add("active");
+    document.getElementById("d" + cur).classList.add("active");
+    document.querySelectorAll(".phase-btn")[cur].classList.add("active");
+    document.getElementById("btn-prev").disabled = cur === 0;
+    document.getElementById("btn-next").disabled = cur === 3;
+  }
+  function step(d) {
+    if (cur + d >= 0 && cur + d <= 3) goTo(cur + d);
+  }
+</script>

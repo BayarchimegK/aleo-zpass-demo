@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+model Credential {
+  id              Int       @id @default(autoincrement())
+  holderEmail     String
+  /// Raw age — present only for legacy credentials issued via /issuer/issue.
+  /// NULL for SSI credentials issued via /issuer/issue-vc (privacy-preserving).
+  age             Int?
+  /// Derived boolean stored at issuance time for SSI credentials.
+  /// Avoids persisting raw age while still allowing the auth service to gate content.
+  isAdult         Boolean?
+  country         String
+  /// Holder's self-sovereign DID (did:zpass:holder:<hex>). Optional for
+  /// credentials issued before SSI support was added.
+  holderDID       String?
+  /// SHA-256 hex commitment over (age:holderDID:credentialId) signed by
+  /// the issuer. Allows the holder to prove attributes without the server
+  /// storing them long-term.
+  commitment      String?
+  issuedAt        DateTime  @default(now())
+  isRevoked       Boolean   @default(false)
+  revokedAt       DateTime?
+  proofExpiresAt  DateTime?
+  proofTxId       String?
+  issuerSignature String?
+}
+
+/// Each successful ZK proof session produces a unique nullifier
+/// (HMAC-SHA256 of credentialId + nonce). Storing it prevents an attacker
+/// who intercepts the verify request from replaying it — even if the nonce
+/// check were somehow bypassed.
+model NullifierLog {
+  id           String   @id @default(uuid())
+  nullifier    String   @unique
+  credentialId Int
+  createdAt    DateTime @default(now())
+}
+
+/// One-time nonces issued before each login attempt.
+/// Prevents proof replay attacks: each nonce is consumed on first use
+/// and expires after 5 minutes.
+model Nonce {
+  id        String   @id @default(uuid())
+  value     String   @unique
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
