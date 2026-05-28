@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
@@ -27,9 +26,5 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5"
-=======
-  "dependencies": {
-    "pptxgenjs": "^4.0.1"
->>>>>>> 2489cdd5ec13440f3cbfe27bd0a095dd37e9c565
   }
 }
